@@ -31,13 +31,4 @@ public class RedisTimeSliceService {
         // 设置过期时间（例如30天，避免无限堆积）
         redisTemplate.expire(key, 30, TimeUnit.DAYS);
     }
-
-    /**
-     * 批量初始化多天
-     */
-    public void initTimeSlicesForDays(Long slotId, List<LocalDate> dates, List<Integer> minutesTemplate) {
-        for (LocalDate date : dates) {
-            initTimeSlicesForDay(slotId, date, minutesTemplate);
-        }
-    }
 }
