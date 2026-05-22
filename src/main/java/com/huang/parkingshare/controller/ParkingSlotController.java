@@ -1,6 +1,6 @@
 package com.huang.parkingshare.controller;
 
-import com.huang.parkingshare.dto.ParkingSlotPublishDTO;
+import com.huang.parkingshare.dto.ParkingSlotPublishRequest;
 import com.huang.parkingshare.entity.ParkingSlot;
 import com.huang.parkingshare.service.ParkingSlotService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,7 +17,7 @@ public class ParkingSlotController {
     private ParkingSlotService parkingSlotService;
 
     @PostMapping("/publish")
-    public ParkingSlot publish(@RequestBody ParkingSlotPublishDTO dto) {
+    public ParkingSlot publish(@RequestBody ParkingSlotPublishRequest dto) {
         // 简单校验
         if (dto.getOwnerId() == null || dto.getAddress() == null) {
             throw new RuntimeException("参数不完整");

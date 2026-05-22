@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.elasticsearch.client.elc.ElasticsearchTemplate;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 
@@ -46,4 +47,5 @@ public class ParkingShareApplicationTests {
                 "test message");
         System.out.println("消息已发送到延迟队列");
     }
+
 }

@@ -5,7 +5,7 @@ import java.math.BigDecimal;
 import java.time.LocalTime;
 
 @Data
-public class ParkingSlotPublishDTO {
+public class ParkingSlotPublishRequest {
     private Long ownerId;               // 业主用户ID
     private String address;
     private BigDecimal latitude;

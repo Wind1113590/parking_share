@@ -1,9 +1,11 @@
 package com.huang.parkingshare.util;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class TimeSliceGenerator {
 
@@ -38,5 +40,17 @@ public class TimeSliceGenerator {
             dates.add(startDate.plusDays(i));
         }
         return dates;
+    }
+
+    public static List<Integer> getRequiredStartMinutes(LocalDateTime start, LocalDateTime end) {
+        List<Integer> minutesList = new ArrayList<>();
+        LocalDateTime current = start;
+        while (current.isBefore(end)) {
+            int minuteOfDay = current.getHour() * 60 + current.getMinute();
+            int alignedStart = (minuteOfDay / 15) * 15;
+            minutesList.add(alignedStart);
+            current = current.plusMinutes(15);
+        }
+        return minutesList.stream().distinct().sorted().collect(Collectors.toList());
     }
 }
