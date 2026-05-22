@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.huang.parkingshare.mapper.TimeSliceMapper">
+
+    <!-- 批量插入时间片 -->
+    <insert id="batchInsert" parameterType="list">
+        INSERT INTO time_slice (
+        id, slot_id, slice_date, start_minute, end_minute,
+        status, order_id, version
+        ) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+            #{item.id}, #{item.slotId}, #{item.sliceDate},
+            #{item.startMinute}, #{item.endMinute},
+            #{item.status}, #{item.orderId}, #{item.version}
+            )
+        </foreach>
+    </insert>
+
+</mapper>

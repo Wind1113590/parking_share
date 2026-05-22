@@ -1,0 +1,71 @@
+spring:
+  application:
+    name: parking-share
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/parkingshare?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: 123456
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+
+
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+    virtual-host: /
+    listener:
+      simple:
+        acknowledge-mode: auto   # ?????????????
+        retry:
+          enabled: true
+          initial-interval: 1000ms
+          max-attempts: 3
+
+  # ???????Spring Boot 3.2 + ???????????
+  threads:
+    virtual:
+      enabled: true
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+
+# MyBatis-Plus ??
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  type-aliases-package: com.parkingshare.entity
+  global-config:
+    db-config:
+      id-type: assign_id   # ??????????
+      logic-delete-field: deleted   # ???????????????
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+  configuration:
+    map-underscore-to-camel-case: true
+    cache-enabled: false
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl   # ??????SQL
+
+# ????
+logging:
+  level:
+    com.parkingshare: debug
+    org.springframework.web: info
+
+platform:
+  commission-rate: 0.1   # ????10%
+
+snowflake:
+  worker-id: 1        # ??ID???0-31
+  datacenter-id: 1    # ????ID???0-31
