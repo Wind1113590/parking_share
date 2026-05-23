@@ -23,4 +23,7 @@ public class Order {
     private LocalDateTime payTime;
     private LocalDateTime cancelTime;
     private LocalDateTime createTime;
+    private LocalDateTime actualEndTime;
+    private BigDecimal actualAmount;
+
 }

@@ -19,12 +19,21 @@
     </insert>
 
     <!-- 批量更新 status 和 order_id -->
-    <update id="updateBatchById" parameterType="list">
-        <foreach collection="list" item="item" separator=";">
-            UPDATE time_slice
-            SET status = #{item.status},
-            order_id = #{item.orderId}
-            WHERE slot_id = #{item.slotId}
+    <update id="updateBatchById">
+        UPDATE time_slice
+        SET status = CASE slot_id
+        <foreach collection="list" item="item" separator=" ">
+            WHEN #{item.slotId} THEN #{item.status}
+        </foreach>
+        END,
+        order_id = CASE slot_id
+        <foreach collection="list" item="item" separator=" ">
+            WHEN #{item.slotId} THEN #{item.orderId}
+        </foreach>
+        END
+        WHERE slot_id IN
+        <foreach collection="list" item="item" open="(" close=")" separator=",">
+            #{item.slotId}
         </foreach>
     </update>
 

@@ -7,7 +7,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 
@@ -32,9 +31,10 @@ public class RedisTimeSliceService {
 
     /**
      * 初始化某车位某一天的所有时间片到 Redis Hash
-     * @param slotId     车位ID
-     * @param date       日期
-     * @param minutes    该天的所有起始分钟列表
+     *
+     * @param slotId  车位ID
+     * @param date    日期
+     * @param minutes 该天的所有起始分钟列表
      */
     public void initTimeSlicesForDay(Long slotId, LocalDate date, List<Integer> minutes) {
         String key = SLICE_KEY_PREFIX + slotId + ":" + date.toString();
@@ -95,7 +95,10 @@ public class RedisTimeSliceService {
     public boolean unlockTimeSlices(Long slotId, LocalDate date, List<Integer> minutes) {
         String key = SLICE_KEY_PREFIX + slotId + ":" + date;
         // 使用 Lua 脚本原子地将指定 field 从 "1" 改回 "0"
-        String lua = "for i, minute in ipairs(ARGV) do redis.call('hset', KEYS[1], minute, '0') end return 1";
+        String lua = "for i, minute in ipairs(ARGV) do " +
+                "redis.call('hset', KEYS[1], minute, \"0\") " +
+                "end " +
+                "return 1";
         String[] args = minutes.stream().map(String::valueOf).toArray(String[]::new);
         try {
             redisTemplate.execute(
@@ -106,6 +109,61 @@ public class RedisTimeSliceService {
             return true;
         } catch (Exception e) {
             log.error("解锁 Redis 时间片失败", e);
+            return false;
+        }
+    }
+
+    public boolean bookTimeSlices(Long slotId, LocalDate date, List<Integer> minutes) {
+        String key = SLICE_KEY_PREFIX + slotId + ":" + date;
+        // Lua 脚本：仅当当前值为 "1" 时才改为 "2"
+        String lua =
+                "for i, minute in ipairs(ARGV) do " +
+                "   local cur = redis.call('hget', KEYS[1], minute) " +
+                "   if cur == '1' then " +
+                "       redis.call('hset', KEYS[1], minute, \"2\") " +
+                "   end " +
+                "end" +
+                " return 1";
+        String[] args = minutes.stream().map(String::valueOf).toArray(String[]::new);
+        try {
+            redisTemplate.execute(
+                    new DefaultRedisScript<>(lua, Long.class),
+                    Collections.singletonList(key),
+                    (Object[]) args
+            );
+            return true;
+        } catch (Exception e) {
+            log.error("预约时间片失败", e);
+            return false;
+        }
+    }
+
+    public boolean occupyFreeTimeSlices(Long slotId, LocalDate date, List<Integer> minutes) {
+        String key = SLICE_KEY_PREFIX + slotId + ":" + date;
+        // Lua 脚本：检查所有 field 是否为 "0"，若是则改为 "2"，否则返回 0
+        String lua =
+                "local fields = ARGV\n" +
+                        "for i, minute in ipairs(fields) do\n" +
+                        "    local cur = redis.call('hget', KEYS[1], minute)\n" +
+                        "    if cur == false or tostring(cur) ~= '0' then\n" +
+                        "        return 0\n" +
+                        "    end\n" +
+                        "end\n" +
+
+                        "for i, minute in ipairs(fields) do\n" +
+                        "    redis.call('hset', KEYS[1], minute, '2')\n" +
+                        "end\n" +
+                        "return 1";
+        String[] args = minutes.stream().map(String::valueOf).toArray(String[]::new);
+        try {
+            Long result = redisTemplate.execute(
+                    new DefaultRedisScript<>(lua, Long.class),
+                    Collections.singletonList(key),
+                    (Object[]) args
+            );
+            return result != null && result == 1L;
+        } catch (Exception e) {
+            log.error("占用空闲时间片失败", e);
             return false;
         }
     }

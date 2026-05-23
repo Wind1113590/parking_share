@@ -63,7 +63,7 @@ public class OrderTimeoutConsumer {
         // 3. 更新订单状态为“已取消(4)”
         order.setStatus(4);
         order.setCancelTime(LocalDateTime.now());
-        int updated = orderMapper.updateById(order);
+        int updated = orderMapper.cancelOrder(orderId);
         if (updated == 0) {
             log.warn("订单取消失败，可能已被支付或其他操作修改。orderId={}", orderId);
             return;
