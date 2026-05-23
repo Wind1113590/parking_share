@@ -1,5 +1,6 @@
 package com.huang.parkingshare.controller;
 
+import com.huang.parkingshare.common.Result;
 import com.huang.parkingshare.dto.SearchParkingRequest;
 import com.huang.parkingshare.service.ParkingSlotService;
 import com.huang.parkingshare.vo.ParkingSlotVO;
@@ -17,7 +18,7 @@ public class SearchController {
     private ParkingSlotService parkingSlotService;
 
     @PostMapping("/slots")
-    public List<ParkingSlotVO> searchAvailableSlots(@Valid @RequestBody SearchParkingRequest request) {
-        return parkingSlotService.searchAvailableSlots(request);
+    public Result<List<ParkingSlotVO>> searchAvailableSlots(@Valid @RequestBody SearchParkingRequest request) {
+        return Result.success(parkingSlotService.searchAvailableSlots(request));
     }
 }

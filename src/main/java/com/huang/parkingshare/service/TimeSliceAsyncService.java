@@ -126,16 +126,18 @@ public class TimeSliceAsyncService {
     }
 
     /**
-     * 将 MySQL 中对应时间片的状态改回 0（空闲），order_id 清空
+     * 将 MySQL 中对应时间片的状态改为 2（已预约）
      */
     @Async
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void updateTimeSliceStatusToReserved(Long slotId, LocalDate date, List<Integer> minutes, Long orderId) {
+        log.debug("minutes{} , orderId{}",minutes,orderId);
         LambdaQueryWrapper<TimeSlice> wrapper = new LambdaQueryWrapper<TimeSlice>()
+                .eq(TimeSlice::getOrderId, orderId)
                 .eq(TimeSlice::getSlotId, slotId)
                 .eq(TimeSlice::getSliceDate, date)
-                .in(TimeSlice::getStartMinute, minutes)
-                .eq(TimeSlice::getOrderId, orderId); // 只更新属于当前订单的时间片
+                .in(TimeSlice::getStartMinute, minutes);
+                 // 只更新属于当前订单的时间片
         List<TimeSlice> slices = timeSliceMapper.selectList(wrapper);
         if (!slices.isEmpty()) {
             slices.forEach(slice -> {

@@ -1,5 +1,6 @@
 package com.huang.parkingshare.controller;
 
+import com.huang.parkingshare.common.Result;
 import com.huang.parkingshare.dto.ParkingSlotPublishRequest;
 import com.huang.parkingshare.entity.ParkingSlot;
 import com.huang.parkingshare.service.ParkingSlotService;
@@ -18,7 +19,7 @@ public class ParkingSlotController {
     private ParkingSlotService parkingSlotService;
 
     @PostMapping("/publish")
-    public ParkingSlot publish(@Valid @RequestBody ParkingSlotPublishRequest dto) {
-        return parkingSlotService.publishSlot(dto);
+    public Result<ParkingSlot> publish(@Valid @RequestBody ParkingSlotPublishRequest dto) {
+        return Result.success(parkingSlotService.publishSlot(dto));
     }
 }

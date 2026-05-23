@@ -83,14 +83,14 @@ public class OrderService {
         LocalTime startLocal = request.getStartTime().toLocalTime();
         LocalTime endLocal = request.getEndTime().toLocalTime();
         if (startLocal.isBefore(slot.getStartTime()) || endLocal.isAfter(slot.getEndTime())) {
-            throw new RuntimeException("预约时间超出车位可预约时段");
+            throw new IllegalArgumentException("预约时间超出车位可预约时段");
         }
 
         // 5. 获取需要锁定的分钟列表
         List<Integer> minutes = TimeSliceGenerator.getRequiredStartMinutes(
                 request.getStartTime(), request.getEndTime());
         if (minutes.isEmpty()) {
-            throw new RuntimeException("预约时间过短");
+            throw new IllegalArgumentException("预约时间过短");
         }
         LocalDate date = request.getStartTime().toLocalDate();
         String redisKey = SLICE_KEY_PREFIX + slot.getId() + ":" + date.toString();
@@ -105,8 +105,8 @@ public class OrderService {
             throw new RuntimeException("所选时间段已被其他用户预约，请重新选择");
         }
 
-        // 8. 计算总价（精确到分钟）
-        long minutesDuration = Duration.between(request.getStartTime(), request.getEndTime()).toMinutes();
+        // 8. 计算总价（精确到分钟）                33  50   30-45 45-60
+        long minutesDuration = minutes.getLast() - minutes.getFirst() + 15;
         BigDecimal hours = BigDecimal.valueOf(minutesDuration).divide(BigDecimal.valueOf(60), 2, RoundingMode.HALF_UP);
         BigDecimal totalPrice = slot.getBasePricePerHour().multiply(hours);
 
@@ -139,24 +139,24 @@ public class OrderService {
 
     private void validateTime(LocalDateTime start, LocalDateTime end) {
         if (start == null || end == null) {
-            throw new RuntimeException("起止时间不能为空");
+            throw new IllegalArgumentException("起止时间不能为空");
         }
         if (start.isAfter(end)) {
-            throw new RuntimeException("开始时间不能晚于结束时间");
+            throw new IllegalArgumentException("开始时间不能晚于结束时间");
         }
         if (start.isBefore(LocalDateTime.now())) {
-            throw new RuntimeException("不能预约过去的时间");
+            throw new IllegalArgumentException("不能预约过去的时间");
         }
         long minutes = Duration.between(start, end).toMinutes();
         if (minutes < 15) {
-            throw new RuntimeException("预约时长至少15分钟");
+            throw new IllegalArgumentException("预约时长至少15分钟");
         }
         if (minutes > 240) {
-            throw new RuntimeException("单次预约不能超过4小时");
+            throw new IllegalArgumentException("单次预约不能超过4小时");
         }
         // 跨天校验（暂不支持）
         if (!start.toLocalDate().equals(end.toLocalDate())) {
-            throw new RuntimeException("暂不支持跨天预约");
+            throw new IllegalArgumentException("暂不支持跨天预约");
         }
     }
 
@@ -252,6 +252,7 @@ public class OrderService {
             if (!occupied) {
                 throw new RuntimeException("您的超时时间段已被其他用户预约，无法离场。请联系管理员或立即驶离。");
             }
+            timeSliceAsyncService.updateTimeSliceStatusAfterLock(slot.getId(), date, extraMinutes, orderId);
 
             // 计算超时费用
             long overMinutes = Duration.between(scheduledEnd, actualEnd).toMinutes();

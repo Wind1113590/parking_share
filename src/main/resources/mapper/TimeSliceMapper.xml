@@ -18,22 +18,21 @@
         </foreach>
     </insert>
 
-    <!-- 批量更新 status 和 order_id -->
-    <update id="updateBatchById">
+    <update id="updateBatchById" parameterType="list">
         UPDATE time_slice
-        SET status = CASE slot_id
-        <foreach collection="list" item="item" separator=" ">
-            WHEN #{item.slotId} THEN #{item.status}
+        SET status = CASE
+        <foreach collection="list" item="item">
+            WHEN slot_id = #{item.slotId} AND slice_date = #{item.sliceDate} AND start_minute = #{item.startMinute} THEN #{item.status}
         </foreach>
         END,
-        order_id = CASE slot_id
-        <foreach collection="list" item="item" separator=" ">
-            WHEN #{item.slotId} THEN #{item.orderId}
+        order_id = CASE
+        <foreach collection="list" item="item">
+            WHEN slot_id = #{item.slotId} AND slice_date = #{item.sliceDate} AND start_minute = #{item.startMinute} THEN #{item.orderId}
         </foreach>
         END
-        WHERE slot_id IN
+        WHERE (slot_id, slice_date, start_minute) IN
         <foreach collection="list" item="item" open="(" close=")" separator=",">
-            #{item.slotId}
+            (#{item.slotId}, #{item.sliceDate}, #{item.startMinute})
         </foreach>
     </update>
 
