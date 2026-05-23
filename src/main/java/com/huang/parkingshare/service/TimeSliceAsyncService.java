@@ -1,5 +1,6 @@
 package com.huang.parkingshare.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.huang.parkingshare.entity.ParkingSlot;
 import com.huang.parkingshare.entity.TimeSlice;
 import com.huang.parkingshare.mapper.TimeSliceMapper;
@@ -9,10 +10,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -75,6 +76,52 @@ public class TimeSliceAsyncService {
             // 记录错误日志，后续可增加重试或补偿任务
             // log.error("生成车位时间片失败, slotId: {}", slot.getId(), e);
             e.printStackTrace();
+        }
+    }
+
+    @Async
+    @Transactional(propagation = Propagation.REQUIRES_NEW) // 新事务，独立于主事务
+    public void updateTimeSliceStatusAfterLock(Long slotId, LocalDate date, List<Integer> minutes, Long orderId) {
+        try {
+            // 批量更新 time_slice 表状态为 1（锁定中）
+            List<TimeSlice> slices = timeSliceMapper.selectList(
+                    new LambdaQueryWrapper<TimeSlice>()
+                            .eq(TimeSlice::getSlotId, slotId)
+                            .eq(TimeSlice::getSliceDate, date)
+                            .in(TimeSlice::getStartMinute, minutes)
+            );
+            if (!slices.isEmpty()) {
+                slices.forEach(slice -> {
+                    slice.setStatus(1);
+                    slice.setOrderId(orderId);
+                });
+                // 使用 MyBatis-Plus 的 updateBatchById 或自定义批量更新
+                timeSliceMapper.updateBatchById(slices);
+            }
+        } catch (Exception e) {
+            log.error("异步更新 MySQL 时间片状态失败, slotId={}, date={}, minutes={}", slotId, date, minutes, e);
+            // 可以写入失败记录表，由定时任务重试
+        }
+    }
+
+    /**
+     * 将 MySQL 中对应时间片的状态改回 0（空闲），order_id 清空
+     */
+    @Async
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void updateTimeSliceStatusToFree(Long slotId, LocalDate date, List<Integer> minutes, Long orderId) {
+        LambdaQueryWrapper<TimeSlice> wrapper = new LambdaQueryWrapper<TimeSlice>()
+                .eq(TimeSlice::getSlotId, slotId)
+                .eq(TimeSlice::getSliceDate, date)
+                .in(TimeSlice::getStartMinute, minutes)
+                .eq(TimeSlice::getOrderId, orderId); // 只更新属于当前订单的时间片
+        List<TimeSlice> slices = timeSliceMapper.selectList(wrapper);
+        if (!slices.isEmpty()) {
+            slices.forEach(slice -> {
+                slice.setStatus(0);
+                slice.setOrderId(null);
+            });
+            timeSliceMapper.updateBatchById(slices); // 复用之前的批量更新方法
         }
     }
 }

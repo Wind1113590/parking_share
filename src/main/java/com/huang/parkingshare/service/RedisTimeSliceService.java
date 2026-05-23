@@ -1,19 +1,32 @@
 package com.huang.parkingshare.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.huang.parkingshare.entity.TimeSlice;
+import com.huang.parkingshare.mapper.TimeSliceMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 public class RedisTimeSliceService {
 
     @Autowired
-    private RedisTemplate<String, Object> redisTemplate;
+    @Qualifier("customStringRedisTemplate")  // 注意指定名称
+    private RedisTemplate<String, String> redisTemplate;
+
+    @Autowired
+    private TimeSliceMapper timeSliceMapper;
 
     private static final String SLICE_KEY_PREFIX = "slice:slot:";
 
@@ -35,10 +48,17 @@ public class RedisTimeSliceService {
 
     // 在 RedisTimeSliceService 中添加
     public boolean areTimeSlicesFree(Long slotId, LocalDate date, List<Integer> startMinutes) {
-        if (startMinutes == null || startMinutes.isEmpty()) {
-            return true;
+        String key = "slice:slot:" + slotId + ":" + date.toString(); // 注意格式一致
+        // 检查 key 是否存在
+        if (Boolean.FALSE.equals(redisTemplate.hasKey(key))) {
+            // Redis 中该天的数据丢失，从 MySQL 恢复
+            reloadTimeSlicesFromDB(slotId, date);
         }
-        String key = SLICE_KEY_PREFIX + slotId + ":" + date.toString();
+
+
+        if (startMinutes == null || startMinutes.isEmpty()) {
+            throw new IllegalArgumentException("预定时间不得小等于0");
+        }
         // 批量获取所有 field 的值，注意需要 List<Object> 类型
         List<Object> fields = startMinutes.stream()
                 .map(minute -> (Object) minute.toString())  // 转换为 Object
@@ -55,6 +75,39 @@ public class RedisTimeSliceService {
             }
         }
         return true;
+    }
+
+    private void reloadTimeSlicesFromDB(Long slotId, LocalDate date) {
+        // 从 MySQL 的 time_slice 表中查询该天所有时间片（status 字段）
+        List<TimeSlice> slices = timeSliceMapper.selectList(
+                new LambdaQueryWrapper<TimeSlice>()
+                        .eq(TimeSlice::getSlotId, slotId)
+                        .eq(TimeSlice::getSliceDate, date)
+        );
+        String key = "slice:slot:" + slotId + ":" + date;
+        for (TimeSlice ts : slices) {
+            // 将 status 转成字符串写入 Redis
+            redisTemplate.opsForHash().put(key, String.valueOf(ts.getStartMinute()), String.valueOf(ts.getStatus()));
+        }
+        redisTemplate.expire(key, 30, TimeUnit.DAYS);
+    }
+
+    public boolean unlockTimeSlices(Long slotId, LocalDate date, List<Integer> minutes) {
+        String key = SLICE_KEY_PREFIX + slotId + ":" + date;
+        // 使用 Lua 脚本原子地将指定 field 从 "1" 改回 "0"
+        String lua = "for i, minute in ipairs(ARGV) do redis.call('hset', KEYS[1], minute, '0') end return 1";
+        String[] args = minutes.stream().map(String::valueOf).toArray(String[]::new);
+        try {
+            redisTemplate.execute(
+                    new DefaultRedisScript<>(lua, Long.class),
+                    Collections.singletonList(key),
+                    (Object[]) args
+            );
+            return true;
+        } catch (Exception e) {
+            log.error("解锁 Redis 时间片失败", e);
+            return false;
+        }
     }
 
 }

@@ -16,4 +16,6 @@ public interface TimeSliceMapper extends BaseMapper<TimeSlice> {
      * @return 插入行数
      */
     int batchInsert(@Param("list") List<TimeSlice> list);
+
+    void updateBatchById(List<TimeSlice> slices);
 }

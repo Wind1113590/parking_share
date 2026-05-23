@@ -18,4 +18,14 @@
         </foreach>
     </insert>
 
+    <!-- 批量更新 status 和 order_id -->
+    <update id="updateBatchById" parameterType="list">
+        <foreach collection="list" item="item" separator=";">
+            UPDATE time_slice
+            SET status = #{item.status},
+            order_id = #{item.orderId}
+            WHERE slot_id = #{item.slotId}
+        </foreach>
+    </update>
+
 </mapper>
