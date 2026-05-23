@@ -140,7 +140,7 @@ public class TimeSliceAsyncService {
         if (!slices.isEmpty()) {
             slices.forEach(slice -> {
                 slice.setStatus(2);
-                slice.setOrderId(null);
+                slice.setOrderId(orderId);
             });
             timeSliceMapper.updateBatchById(slices); // 复用之前的批量更新方法
         }
