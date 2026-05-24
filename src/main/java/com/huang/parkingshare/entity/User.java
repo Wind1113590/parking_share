@@ -14,6 +14,8 @@ public class User {
     @TableId(type = IdType.AUTO)
     private Long id;
     private String phone;
+    private String password;   // 新增
+    private String nickname;   // 新增
     private Integer role;
     private BigDecimal balance;
     private LocalDateTime createTime;

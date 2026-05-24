@@ -76,3 +76,8 @@ platform:
 snowflake:
   worker-id: 1        # ??ID???0-31
   datacenter-id: 1    # ????ID???0-31
+
+
+jwt:
+  secret: 3X7Q9w2R5t8Y11F4h6K9n2P5s7V10y13E16g19L22o25A28b31
+  expiration: 604800000  # 7天毫秒数
