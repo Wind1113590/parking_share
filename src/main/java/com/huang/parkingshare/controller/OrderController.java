@@ -5,7 +5,9 @@ import com.huang.parkingshare.common.Result;
 import com.huang.parkingshare.dto.OrderCreateRequest;
 import com.huang.parkingshare.entity.Order;
 import com.huang.parkingshare.service.OrderService;
+import com.huang.parkingshare.vo.OrderDetailVO;
 import com.huang.parkingshare.vo.OrderVO;
+import com.huang.parkingshare.vo.OwnerEarningVO;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -34,11 +36,31 @@ public class OrderController {
         return Result.success("离场成功，订单已完成");
     }
 
-    @GetMapping("/list")
-    public Result<Page<OrderVO>> listOrders(
+    @GetMapping("/userListWithStatus")
+    public Result<Page<OrderVO>> getUserOrdersWithStatus(
             @RequestParam(defaultValue = "1") Integer pageNum,
             @RequestParam(defaultValue = "10") Integer pageSize,
             @RequestParam(required = false) Integer status) {
         return Result.success(orderService.getUserOrders(pageNum, pageSize, status));
+    }
+
+    @GetMapping("/userList")
+    public Result<Page<OrderVO>> getUserOrders(
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "10") Integer pageSize) {
+        return Result.success(orderService.getUserOrders(pageNum, pageSize, null));
+    }
+
+    @GetMapping("/userOrderDetail/{orderId}")
+    public Result<OrderDetailVO> getUserOrderDetail(@PathVariable Long orderId) {
+        return Result.success(orderService.getUserOrderDetail(orderId));
+    }
+
+    @GetMapping("/ownerListWithStatus")
+    public Result<Page<OwnerEarningVO>> getOwnerEarnings(
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "10") Integer pageSize,
+            @RequestParam(required = false) Integer status){
+        return Result.success(orderService.getOwnerEarnings(pageNum, pageSize, status));
     }
 }

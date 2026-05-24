@@ -7,15 +7,17 @@ import com.huang.parkingshare.dto.OrderCreateRequest;
 import com.huang.parkingshare.entity.Order;
 import com.huang.parkingshare.entity.ParkingSlot;
 import com.huang.parkingshare.entity.PaymentTransaction;
-import com.huang.parkingshare.mapper.OrderMapper;
-import com.huang.parkingshare.mapper.ParkingSlotMapper;
+import com.huang.parkingshare.entity.User;
+import com.huang.parkingshare.mapper.*;
 import com.huang.parkingshare.component.RedisLuaScript;
-import com.huang.parkingshare.mapper.PaymentTransactionMapper;
 import com.huang.parkingshare.util.SnowflakeIdWorker;
 import com.huang.parkingshare.util.TimeSliceGenerator;
+import com.huang.parkingshare.vo.OrderDetailVO;
 import com.huang.parkingshare.vo.OrderVO;
+import com.huang.parkingshare.vo.OwnerEarningVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -41,11 +43,15 @@ public class OrderService {
     private ParkingSlotMapper parkingSlotMapper;
     @Autowired
     private PaymentTransactionMapper paymentTransactionMapper;
+    @Autowired
+    private OwnerEarningMapper ownerEarningMapper;
 
     @Autowired
     private RedisLuaScript redisLuaScript;
     @Autowired
     private SnowflakeIdWorker snowflakeIdWorker;
+    @Autowired
+    private UserMapper userMapper;
 
 
     @Autowired
@@ -165,12 +171,17 @@ public class OrderService {
 
     @Transactional
     public void payOrder(Long orderId) {
+        User user = userMapper.selectById(CurrentUserHolder.getUserId());
+        Order order = orderMapper.selectById(orderId);
+        user.setBalance(user.getBalance().subtract(order.getTotalAmount()));
+        userMapper.updateById(user);
+
 
         // 1. 条件更新订单状态（原子操作）
         int updated = orderMapper.payOrder(orderId);
         if (updated == 0) {
             // 可能已经支付或超时取消，重新查询确认错误类型
-            Order order = orderMapper.selectById(orderId);
+             order = orderMapper.selectById(orderId);
             if (order == null) {
                 throw new RuntimeException("订单不存在");
             }
@@ -186,7 +197,7 @@ public class OrderService {
         // 2. 模拟调用第三方支付成功（实际应该是异步回调，这里简化同步）
         // 实际项目中，此处应发起支付请求，成功后收到回调再执行下面逻辑。
         // 为了演示，我们假设支付成功。
-        Order order = orderMapper.selectById(orderId);
+        order = orderMapper.selectById(orderId);
 
         // 3. 生成外部流水号（模拟）
         String outTradeNo = "SIM_" + snowflakeIdWorker.nextId();  // 例如 "SIM_" + SnowflakeIdWorker.nextId()
@@ -263,6 +274,10 @@ public class OrderService {
             BigDecimal pricePerSlice = slot.getBasePricePerHour().divide(BigDecimal.valueOf(4), 2, RoundingMode.HALF_UP);
             extraAmount = pricePerSlice.multiply(BigDecimal.valueOf(overSlices));
 
+            User user = userMapper.selectById(CurrentUserHolder.getUserId());
+            user.setBalance(user.getBalance().subtract(extraAmount));
+            userMapper.updateById(user);
+
             log.info("订单 {} 超时 {} 分钟，额外占用时间片 {} 个，需额外支付 {}", orderId, overMinutes, overSlices, extraAmount);
             // 实际应用中可能需要创建补缴支付流水，等待用户支付
             // 这里模拟支付成功，直接记录额外金额
@@ -291,12 +306,27 @@ public class OrderService {
         Page<OrderVO> page = new Page<>(pageNum, pageSize);
         Page<OrderVO> result = orderMapper.selectOrderPage(page, userId, status);
 
-        // 填充状态描述
-        result.getRecords().forEach(vo -> vo.setStatusDesc(getStatusDesc(vo.getStatus())));
+        result.getRecords().forEach(orderVO -> orderVO.setStatusDesc(getUserOrderStatusDesc(orderVO.getStatus())));
+
+
         return result;
     }
 
-    private String getStatusDesc(Integer status) {
+    public OrderDetailVO getUserOrderDetail(Long orderId) {
+        Order order = orderMapper.selectById(orderId);
+
+        ParkingSlot parkingSlot = parkingSlotMapper.selectById(order.getSlotId());
+        OrderDetailVO orderDetailVO = new OrderDetailVO();
+        BeanUtils.copyProperties(order, orderDetailVO);
+        orderDetailVO.setAddress(parkingSlot.getAddress());
+        orderDetailVO.setOrderId(orderId);
+
+        // 填充状态描述
+        orderDetailVO.setStatusDesc(getUserOrderStatusDesc(orderDetailVO.getStatus()));
+        return orderDetailVO;
+    }
+
+    private String getUserOrderStatusDesc(Integer status) {
         if (status == null) return "未知";
         switch (status) {
             case 0: return "待支付";
@@ -308,5 +338,25 @@ public class OrderService {
             default: return "未知";
         }
     }
+
+    public Page<OwnerEarningVO> getOwnerEarnings(Integer pageNum, Integer pageSize, Integer status) {
+        Long ownerId = CurrentUserHolder.getUserId();
+        Page<OwnerEarningVO> page = new Page<>(pageNum, pageSize);
+        Page<OwnerEarningVO> result = ownerEarningMapper.selectOwnerEarningPage(page, ownerId, status);
+
+        result.getRecords().forEach(ownerEarningVO -> ownerEarningVO.setStatusDesc(getOwnerEarningStatusDesc(ownerEarningVO.getStatus())));
+
+        return result;
+    }
+
+    private String getOwnerEarningStatusDesc(Integer status) {
+        if (status == null) return "未知";
+        switch (status) {
+            case 0: return "待结算";
+            case 1: return "已结算";
+            default: return "未知";
+        }
+    }
+
 
 }

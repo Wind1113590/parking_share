@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.huang.parkingshare.mapper.OwnerEarningMapper">
+
+    <select id="selectOwnerEarningPage" resultType="com.huang.parkingshare.vo.OwnerEarningVO">
+        SELECT
+        order_id,
+        amount,
+        status,
+        settle_date
+        FROM owner_earning
+        WHERE owner_id = #{ownerId}
+        <if test="status != null">
+            AND status = #{status}
+        </if>
+        ORDER BY settle_date DESC
+    </select>
+
+</mapper>
