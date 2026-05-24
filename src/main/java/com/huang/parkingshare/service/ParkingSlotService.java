@@ -1,16 +1,22 @@
 package com.huang.parkingshare.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.huang.parkingshare.config.RabbitMQConfig;
 import com.huang.parkingshare.context.CurrentUserHolder;
 import com.huang.parkingshare.document.ParkingSlotDocument;
 import com.huang.parkingshare.dto.*;
 import com.huang.parkingshare.entity.ParkingSlot;
+import com.huang.parkingshare.entity.TimeSlice;
 import com.huang.parkingshare.mapper.ParkingSlotMapper;
+import com.huang.parkingshare.mapper.TimeSliceMapper;
 import com.huang.parkingshare.mq.ParkingSlotSyncMessage;
 import com.huang.parkingshare.repository.ParkingSlotEsRepository;
 import com.huang.parkingshare.util.TimeSliceGenerator;
+import com.huang.parkingshare.vo.ParkingSlotDetailVO;
 import com.huang.parkingshare.vo.ParkingSlotVO;
+import com.huang.parkingshare.vo.TimeSliceVO;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.geo.Point;
 import org.springframework.scheduling.annotation.Async;
@@ -33,6 +39,9 @@ public class ParkingSlotService {
 
     @Autowired
     private ParkingSlotMapper parkingSlotMapper;
+
+    @Autowired
+    private TimeSliceMapper timeSliceMapper;
 
     @Autowired
     private TimeSliceAsyncService timeSliceAsyncService;
@@ -177,8 +186,7 @@ public class ParkingSlotService {
         return R * c;
     }
 
-    @Async
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+
     public void stopSlot(StopSlotRequest request){
         Long slotId = request.getSlotId();
 
@@ -194,8 +202,6 @@ public class ParkingSlotService {
         timeSliceAsyncService.updateTimeSliceStatusToStop(slotId, request.getStopStartTime().toLocalDate(),minutes);
     }
 
-    @Async
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void startSlot(startSlotRequest request){
         Long slotId = request.getSlotId();
 
@@ -238,5 +244,35 @@ public class ParkingSlotService {
         parkingSlotMapper.updateById(slot);
 
         updateSlotToElasticsearch(slot);
+    }
+
+    public List<ParkingSlot> list(Long ownerId) {
+        return parkingSlotMapper.selectList(new LambdaQueryWrapper<ParkingSlot>().eq(ParkingSlot::getOwnerId, ownerId));
+    }
+
+
+    public ParkingSlotDetailVO detail(ParkingSlotDetailRequest request) {
+        Long slotId = request.getSlotId();
+
+        ParkingSlot parkingSlot = parkingSlotMapper.selectById(slotId);
+
+        List<TimeSlice> timeSlices = timeSliceMapper.selectList(new LambdaQueryWrapper<TimeSlice>()
+                .eq(TimeSlice::getSlotId, slotId)
+                .eq(TimeSlice::getSliceDate, request.getSliceDate())
+        );
+        List<TimeSliceVO> list = new ArrayList<>();
+
+        timeSlices.forEach(timeSlice -> {
+            TimeSliceVO detailVO = new TimeSliceVO();
+            BeanUtils.copyProperties(timeSlice,detailVO);
+            list.add(detailVO);
+        });
+
+        ParkingSlotDetailVO slotDetailVO = new ParkingSlotDetailVO();
+        BeanUtils.copyProperties(parkingSlot,slotDetailVO);
+        slotDetailVO.setSlotId(slotId);
+        slotDetailVO.setTimeSliceVOList(list);
+
+        return slotDetailVO;
     }
 }
