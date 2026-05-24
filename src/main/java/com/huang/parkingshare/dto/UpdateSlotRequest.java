@@ -1,11 +1,13 @@
 package com.huang.parkingshare.dto;
 
 import lombok.Data;
+
 import java.math.BigDecimal;
 import java.time.LocalTime;
 
 @Data
-public class ParkingSlotPublishRequest {
+public class UpdateSlotRequest {
+    private Long slotId;
     private String address;
     private BigDecimal latitude;
     private BigDecimal longitude;

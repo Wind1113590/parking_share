@@ -82,7 +82,7 @@ public class OrderTimeoutConsumer {
         }
 
         // 5. 同步更新 MySQL 中对应时间片的状态（可选，但建议保持最终一致性）
-        timeSliceAsyncService.updateTimeSliceStatusToFree(order.getSlotId(), date, minutes, order.getId());
+        timeSliceAsyncService.updateTimeSliceStatusToFree(order.getSlotId(), date, minutes);
 
         log.info("订单超时取消成功，已释放时间片。orderId={}", orderId);
     }

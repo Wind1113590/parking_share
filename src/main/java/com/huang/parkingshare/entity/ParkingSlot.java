@@ -23,4 +23,5 @@ public class ParkingSlot {
     private LocalTime startTime;       // 每日可预约开始时间，如 08:00:00
     private LocalTime endTime;         // 每日可预约结束时间，如 20:00:00
     private LocalDateTime createTime;
+    private LocalDateTime updateTime;
 }

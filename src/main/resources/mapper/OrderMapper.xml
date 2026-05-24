@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.huang.parkingshare.mapper.OrderMapper">
+
+    <select id="selectOrderPage" resultType="com.huang.parkingshare.vo.OrderVO">
+        SELECT
+        o.id AS order_id,
+        o.slot_id,
+        o.start_time,
+        o.end_time,
+        o.total_amount,
+        o.status,
+        o.create_time,
+        o.pay_time,
+        o.cancel_time,
+        o.actual_end_time,
+        o.actual_amount,
+        p.address
+        FROM `order` o
+        LEFT JOIN parking_slot p ON o.slot_id = p.id
+        WHERE o.user_id = #{userId}
+        <if test="status != null">
+            AND o.status = #{status}
+        </if>
+        ORDER BY o.create_time DESC
+    </select>
+
+</mapper>

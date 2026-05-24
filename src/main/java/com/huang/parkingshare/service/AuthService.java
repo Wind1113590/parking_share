@@ -2,12 +2,11 @@ package com.huang.parkingshare.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.huang.parkingshare.dto.LoginRequest;
-import com.huang.parkingshare.dto.LoginVO;
+import com.huang.parkingshare.vo.LoginVO;
 import com.huang.parkingshare.dto.RegisterRequest;
 import com.huang.parkingshare.entity.User;
 import com.huang.parkingshare.mapper.UserMapper;
 import com.huang.parkingshare.util.JwtUtil;
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.RedisTemplate;

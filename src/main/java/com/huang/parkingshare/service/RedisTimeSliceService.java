@@ -118,12 +118,12 @@ public class RedisTimeSliceService {
         // Lua 脚本：仅当当前值为 "1" 时才改为 "2"
         String lua =
                 "for i, minute in ipairs(ARGV) do " +
-                "   local cur = redis.call('hget', KEYS[1], minute) " +
-                "   if cur == '1' then " +
-                "       redis.call('hset', KEYS[1], minute, \"2\") " +
-                "   end " +
-                "end" +
-                " return 1";
+                        "   local cur = redis.call('hget', KEYS[1], minute) " +
+                        "   if cur == '1' then " +
+                        "       redis.call('hset', KEYS[1], minute, \"2\") " +
+                        "   end " +
+                        "end" +
+                        " return 1";
         String[] args = minutes.stream().map(String::valueOf).toArray(String[]::new);
         try {
             redisTemplate.execute(
@@ -166,6 +166,74 @@ public class RedisTimeSliceService {
             log.error("占用空闲时间片失败", e);
             return false;
         }
+    }
+
+    public boolean stopTimeSlices(Long slotId, LocalDate date, List<Integer> minutes) {
+        String key = SLICE_KEY_PREFIX + slotId + ":" + date;
+        // Lua 脚本：检查所有 field 是否为 "0"，若是则改为 "3"，否则返回 0
+        String lua =
+        "local fields = ARGV\n" +
+                "for i, minute in ipairs(fields) do\n" +
+                "    local cur = redis.call('hget', KEYS[1], minute)\n" +
+                "    if cur == false or tostring(cur) ~= '0' then\n" +
+                "        return 0\n" +
+                "    end\n" +
+                "end\n" +
+
+
+                "for i, minute in ipairs(fields) do\n" +
+                "    redis.call('hset', KEYS[1], minute, '3')\n" +
+                "end\n" +
+                "return 1";
+        String[] args = minutes.stream().map(String::valueOf).toArray(String[]::new);
+        try {
+            Long result = redisTemplate.execute(
+                    new DefaultRedisScript<>(lua, Long.class),
+                    Collections.singletonList(key),
+                    (Object[]) args
+            );
+            return result != null && result == 1L;
+        } catch (Exception e) {
+            log.error("占用空闲时间片失败", e);
+            return false;
+        }
+    }
+
+    public boolean startTimeSlices(Long slotId, LocalDate date, List<Integer> minutes) {
+        String key = SLICE_KEY_PREFIX + slotId + ":" + date;
+        // Lua 脚本：检查所有 field 是否为 "3"，若是则改为 "0"，否则返回 0
+        String lua =
+                "local fields = ARGV\n" +
+                        "for i, minute in ipairs(fields) do\n" +
+                        "    local cur = redis.call('hget', KEYS[1], minute)\n" +
+                        "    if cur == false or tostring(cur) ~= '3' then\n" +
+                        "        return 0\n" +
+                        "    end\n" +
+                        "end\n" +
+
+
+                        "for i, minute in ipairs(fields) do\n" +
+                        "    redis.call('hset', KEYS[1], minute, '0')\n" +
+                        "end\n" +
+                        "return 1";
+        String[] args = minutes.stream().map(String::valueOf).toArray(String[]::new);
+        try {
+            Long result = redisTemplate.execute(
+                    new DefaultRedisScript<>(lua, Long.class),
+                    Collections.singletonList(key),
+                    (Object[]) args
+            );
+            return result != null && result == 1L;
+        } catch (Exception e) {
+            log.error("占用空闲时间片失败", e);
+            return false;
+        }
+    }
+
+    public void deleteTimeSlicesForDay(Long slotId, LocalDate date) {
+        String key = SLICE_KEY_PREFIX + slotId + ":" + date.toString();
+        // 使用 Hash 结构，field = startMinute, value = "0" (空闲)
+        redisTemplate.delete(key);
     }
 
 }

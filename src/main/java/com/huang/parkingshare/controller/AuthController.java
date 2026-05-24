@@ -2,11 +2,10 @@ package com.huang.parkingshare.controller;
 
 import com.huang.parkingshare.common.Result;
 import com.huang.parkingshare.dto.LoginRequest;
-import com.huang.parkingshare.dto.LoginVO;
+import com.huang.parkingshare.vo.LoginVO;
 import com.huang.parkingshare.dto.RegisterRequest;
 import com.huang.parkingshare.service.AuthService;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.RedisTemplate;

@@ -1,9 +1,9 @@
 package com.huang.parkingshare.service;
 
 import com.huang.parkingshare.config.RabbitMQConfig;
+import com.huang.parkingshare.context.CurrentUserHolder;
 import com.huang.parkingshare.document.ParkingSlotDocument;
-import com.huang.parkingshare.dto.ParkingSlotPublishRequest;
-import com.huang.parkingshare.dto.SearchParkingRequest;
+import com.huang.parkingshare.dto.*;
 import com.huang.parkingshare.entity.ParkingSlot;
 import com.huang.parkingshare.mapper.ParkingSlotMapper;
 import com.huang.parkingshare.mq.ParkingSlotSyncMessage;
@@ -13,7 +13,9 @@ import com.huang.parkingshare.vo.ParkingSlotVO;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.geo.Point;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -44,15 +46,16 @@ public class ParkingSlotService {
     @Autowired
     private RedisTimeSliceService redisTimeSliceService;
 
-
     // 初始化未来天数（可以配置，这里默认7天）
     private static final int INIT_FUTURE_DAYS = 7;
 
     @Transactional
     public ParkingSlot publishSlot(ParkingSlotPublishRequest request) {
+        Long ownerId = CurrentUserHolder.getUserId();
+
         // 1. 插入车位表
         ParkingSlot slot = new ParkingSlot();
-        slot.setOwnerId(request.getOwnerId());
+        slot.setOwnerId(ownerId);
         slot.setAddress(request.getAddress());
         slot.setLatitude(request.getLatitude());
         slot.setLongitude(request.getLongitude());
@@ -76,15 +79,15 @@ public class ParkingSlotService {
         return slot;
     }
 
-    public void updateSlot(ParkingSlot slot) {
-        parkingSlotMapper.updateById(slot);
+    
+    public void updateSlotToElasticsearch(ParkingSlot slot) {
         // 发送异步更新消息
         ParkingSlotSyncMessage message = new ParkingSlotSyncMessage(slot.getId(), slot.getOwnerId(), "UPDATE");
         rabbitTemplate.convertAndSend(RabbitMQConfig.PARKING_SLOT_SYNC_EXCHANGE, RabbitMQConfig.PARKING_SLOT_SYNC_ROUTING_KEY, message);
     }
 
-    public void deleteSlot(Long slotId) {
-        parkingSlotMapper.deleteById(slotId);  // 或逻辑删除
+    public void deleteSlotToElasticsearch(Long slotId) {
+        //parkingSlotMapper.deleteById(slotId);  // 或逻辑删除
         ParkingSlotSyncMessage message = new ParkingSlotSyncMessage(slotId, null, "DELETE");
         rabbitTemplate.convertAndSend(RabbitMQConfig.PARKING_SLOT_SYNC_EXCHANGE, RabbitMQConfig.PARKING_SLOT_SYNC_ROUTING_KEY, message);
     }
@@ -174,5 +177,66 @@ public class ParkingSlotService {
         return R * c;
     }
 
+    @Async
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void stopSlot(StopSlotRequest request){
+        Long slotId = request.getSlotId();
 
+
+        List<Integer> minutes = TimeSliceGenerator.getRequiredStartMinutes(request.getStopStartTime(), request.getStopEndTime());
+
+        boolean takeOff = redisTimeSliceService.stopTimeSlices(slotId, request.getStopStartTime().toLocalDate(), minutes);
+        if(!takeOff){
+            throw new RuntimeException("下架车位的时间分片已有用户锁定");
+        }
+
+        //后续异步线程池同步MySQL数据
+        timeSliceAsyncService.updateTimeSliceStatusToStop(slotId, request.getStopStartTime().toLocalDate(),minutes);
+    }
+
+    @Async
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void startSlot(startSlotRequest request){
+        Long slotId = request.getSlotId();
+
+        List<Integer> minutes = TimeSliceGenerator.getRequiredStartMinutes(request.getStartTime(), request.getStartEndTime());
+
+        boolean takeOff = redisTimeSliceService.startTimeSlices(slotId, request.getStartTime().toLocalDate(), minutes);
+        if(!takeOff){
+            throw new RuntimeException("下架车位的时间分片已有用户锁定");
+        }
+
+        //后续异步线程池同步MySQL数据
+        timeSliceAsyncService.updateTimeSliceStatusToFree(slotId, request.getStartTime().toLocalDate(),minutes);
+    }
+
+
+    @Async
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void updateSlot(UpdateSlotRequest request) {
+        Long ownerId = CurrentUserHolder.getUserId();
+
+        // 1. 插入车位表
+        ParkingSlot slot = new ParkingSlot();
+        slot.setOwnerId(ownerId);
+        slot.setId(request.getSlotId());
+        slot.setAddress(request.getAddress());
+        slot.setLatitude(request.getLatitude());
+        slot.setLongitude(request.getLongitude());
+        slot.setBasePricePerHour(request.getBasePricePerHour());
+        slot.setStartTime(request.getStartTime());
+        slot.setEndTime(request.getEndTime());
+        slot.setUpdateTime(LocalDateTime.now());
+
+        LocalDate now = LocalDate.now();
+        List<LocalDate> dateRange = TimeSliceGenerator.getDateRange(now, INIT_FUTURE_DAYS);
+
+        for (LocalDate localDate : dateRange) {
+            redisTimeSliceService.deleteTimeSlicesForDay(slot.getId(),localDate);
+        }
+
+        parkingSlotMapper.updateById(slot);
+
+        updateSlotToElasticsearch(slot);
+    }
 }

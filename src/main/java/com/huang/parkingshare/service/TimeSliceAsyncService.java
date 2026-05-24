@@ -105,27 +105,6 @@ public class TimeSliceAsyncService {
     }
 
     /**
-     * 将 MySQL 中对应时间片的状态改回 0（空闲），order_id 清空
-     */
-    @Async
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void updateTimeSliceStatusToFree(Long slotId, LocalDate date, List<Integer> minutes, Long orderId) {
-        LambdaQueryWrapper<TimeSlice> wrapper = new LambdaQueryWrapper<TimeSlice>()
-                .eq(TimeSlice::getSlotId, slotId)
-                .eq(TimeSlice::getSliceDate, date)
-                .in(TimeSlice::getStartMinute, minutes)
-                .eq(TimeSlice::getOrderId, orderId); // 只更新属于当前订单的时间片
-        List<TimeSlice> slices = timeSliceMapper.selectList(wrapper);
-        if (!slices.isEmpty()) {
-            slices.forEach(slice -> {
-                slice.setStatus(0);
-                slice.setOrderId(null);
-            });
-            timeSliceMapper.updateBatchById(slices); // 复用之前的批量更新方法
-        }
-    }
-
-    /**
      * 将 MySQL 中对应时间片的状态改为 2（已预约）
      */
     @Async
@@ -143,6 +122,46 @@ public class TimeSliceAsyncService {
             slices.forEach(slice -> {
                 slice.setStatus(2);
                 slice.setOrderId(orderId);
+            });
+            timeSliceMapper.updateBatchById(slices); // 复用之前的批量更新方法
+        }
+    }
+
+    /**
+     * 将 MySQL 中对应时间片的状态改回 3（停用），order_id 清空
+     */
+    @Async
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void updateTimeSliceStatusToStop(Long slotId, LocalDate date, List<Integer> minutes) {
+        LambdaQueryWrapper<TimeSlice> wrapper = new LambdaQueryWrapper<TimeSlice>()
+                .eq(TimeSlice::getSlotId, slotId)
+                .eq(TimeSlice::getSliceDate, date)
+                .in(TimeSlice::getStartMinute, minutes);
+        List<TimeSlice> slices = timeSliceMapper.selectList(wrapper);
+        if (!slices.isEmpty()) {
+            slices.forEach(slice -> {
+                slice.setStatus(3);
+                slice.setOrderId(null);
+            });
+            timeSliceMapper.updateBatchById(slices); // 复用之前的批量更新方法
+        }
+    }
+
+    /**
+     * 将 MySQL 中对应时间片的状态改回 0（空闲），order_id 清空
+     */
+    @Async
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void updateTimeSliceStatusToFree(Long slotId, LocalDate date, List<Integer> minutes) {
+        LambdaQueryWrapper<TimeSlice> wrapper = new LambdaQueryWrapper<TimeSlice>()
+                .eq(TimeSlice::getSlotId, slotId)
+                .eq(TimeSlice::getSliceDate, date)
+                .in(TimeSlice::getStartMinute, minutes);
+        List<TimeSlice> slices = timeSliceMapper.selectList(wrapper);
+        if (!slices.isEmpty()) {
+            slices.forEach(slice -> {
+                slice.setStatus(0);
+                slice.setOrderId(null);
             });
             timeSliceMapper.updateBatchById(slices); // 复用之前的批量更新方法
         }

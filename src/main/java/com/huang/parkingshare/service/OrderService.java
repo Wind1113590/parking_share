@@ -1,6 +1,8 @@
 package com.huang.parkingshare.service;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.huang.parkingshare.config.RabbitMQConfig;
+import com.huang.parkingshare.context.CurrentUserHolder;
 import com.huang.parkingshare.dto.OrderCreateRequest;
 import com.huang.parkingshare.entity.Order;
 import com.huang.parkingshare.entity.ParkingSlot;
@@ -11,6 +13,7 @@ import com.huang.parkingshare.component.RedisLuaScript;
 import com.huang.parkingshare.mapper.PaymentTransactionMapper;
 import com.huang.parkingshare.util.SnowflakeIdWorker;
 import com.huang.parkingshare.util.TimeSliceGenerator;
+import com.huang.parkingshare.vo.OrderVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -112,7 +115,7 @@ public class OrderService {
 
         // 9. 生成订单
         Order order = new Order();
-        order.setUserId(1L); // 实际应从登录用户获取，暂时写死，后续替换
+        order.setUserId(CurrentUserHolder.getUserId()); // 实际应从登录用户获取，暂时写死，后续替换
         order.setSlotId(slot.getId());
         order.setStartTime(request.getStartTime());
         order.setEndTime(request.getEndTime());
@@ -275,4 +278,35 @@ public class OrderService {
 
         log.info("订单 {} 离场完成，预约费用 {}，超时费 {}，总计 {}", orderId, order.getTotalAmount(), extraAmount, totalActualAmount);
     }
+
+    /**
+     * 获取当前用户的订单列表（分页）
+     * @param pageNum  页码
+     * @param pageSize 每页大小
+     * @param status   订单状态（可选，传 null 表示查询所有）
+     * @return 分页结果
+     */
+    public Page<OrderVO> getUserOrders(Integer pageNum, Integer pageSize, Integer status) {
+        Long userId = CurrentUserHolder.getUserId();
+        Page<OrderVO> page = new Page<>(pageNum, pageSize);
+        Page<OrderVO> result = orderMapper.selectOrderPage(page, userId, status);
+
+        // 填充状态描述
+        result.getRecords().forEach(vo -> vo.setStatusDesc(getStatusDesc(vo.getStatus())));
+        return result;
+    }
+
+    private String getStatusDesc(Integer status) {
+        if (status == null) return "未知";
+        switch (status) {
+            case 0: return "待支付";
+            case 1: return "已支付";
+            case 2: return "使用中";
+            case 3: return "已完成";
+            case 4: return "已取消";
+            case 5: return "已退款";
+            default: return "未知";
+        }
+    }
+
 }

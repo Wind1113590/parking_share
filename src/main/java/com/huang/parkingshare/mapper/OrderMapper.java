@@ -1,7 +1,9 @@
 package com.huang.parkingshare.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.huang.parkingshare.entity.Order;
+import com.huang.parkingshare.vo.OrderVO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Update;
@@ -29,4 +31,8 @@ public interface OrderMapper extends BaseMapper<Order> {
     // 离场：仅当状态为 2（使用中）时改为 3（已完成），并记录实际离场时间
     @Update("UPDATE `order` SET status = 3, actual_end_time = NOW() WHERE id = #{orderId} AND status = 2")
     int completeOrder(@Param("orderId") Long orderId);
+
+    Page<OrderVO> selectOrderPage(Page<?> page,
+                                  @Param("userId") Long userId,
+                                  @Param("status") Integer status);
 }

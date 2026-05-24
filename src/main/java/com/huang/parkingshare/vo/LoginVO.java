@@ -1,4 +1,4 @@
-package com.huang.parkingshare.dto;
+package com.huang.parkingshare.vo;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
