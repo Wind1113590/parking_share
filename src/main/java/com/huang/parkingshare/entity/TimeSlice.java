@@ -17,5 +17,4 @@ public class TimeSlice {
     private Integer endMinute;     // 495 = 08:15
     private Integer status;        // 0空闲 1锁定中 2已预约 3不可用
     private Long orderId;
-    private Integer version;       // 乐观锁备用
 }

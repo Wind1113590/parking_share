@@ -12,5 +12,4 @@ public class OrderCreateRequest {
     private LocalDateTime startTime;
     @NotNull
     private LocalDateTime endTime;
-    private String idempotentToken; // 幂等token，前端生成
 }

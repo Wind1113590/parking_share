@@ -159,11 +159,7 @@ public class TimeSliceAsyncService {
         }
     }
 
-    /**
-     * 将 MySQL 中对应时间片的状态改回 0（空闲），order_id 清空
-     */
-    @Async
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+
     public void updateTimeSliceStatusToFree(Long slotId, LocalDate date, List<Integer> minutes) {
         LambdaQueryWrapper<TimeSlice> wrapper = new LambdaQueryWrapper<TimeSlice>()
                 .eq(TimeSlice::getSlotId, slotId)
