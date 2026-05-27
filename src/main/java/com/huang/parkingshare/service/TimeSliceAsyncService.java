@@ -32,7 +32,7 @@ public class TimeSliceAsyncService {
 
     private static final int INIT_FUTURE_DAYS = 7;
 
-    @Async  // 使用虚拟线程执行
+    @Async("virtualThreadExecutor") // 使用虚拟线程执行
     public void generateTimeSlicesAsync(ParkingSlot slot) {
         try {
             log.info("执行线程: " + Thread.currentThread());
@@ -61,13 +61,25 @@ public class TimeSliceAsyncService {
                     ts.setEndMinute(interval[1]);
                     ts.setStatus(0);
                     ts.setOrderId(null);
-                    ts.setVersion(0);
                     slices.add(ts);
                 }
+                long now = System.currentTimeMillis();
+
                 // 批量插入MySQL
                 if (!slices.isEmpty()) {
                     timeSliceMapper.batchInsert(slices);
                 }
+
+
+/*
+                for (TimeSlice slice : slices) {
+                    timeSliceMapper.insert(slice);
+                }
+*/
+                long useTime = System.currentTimeMillis() - now;
+
+                log.info("耗时"+useTime);
+
                 // 初始化Redis
                 redisTimeSliceService.initTimeSlicesForDay(slot.getId(), date, startMinutes);
             }

@@ -1,27 +1,20 @@
 package com.huang.parkingshare.mq;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.huang.parkingshare.config.RabbitMQConfig;
 import com.huang.parkingshare.entity.Order;
-import com.huang.parkingshare.entity.TimeSlice;
 import com.huang.parkingshare.mapper.OrderMapper;
-import com.huang.parkingshare.mapper.TimeSliceMapper;
 import com.huang.parkingshare.service.RedisTimeSliceService;
 import com.huang.parkingshare.service.TimeSliceAsyncService;
 import com.huang.parkingshare.util.TimeSliceGenerator;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Component

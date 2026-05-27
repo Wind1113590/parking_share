@@ -8,7 +8,6 @@ import com.huang.parkingshare.mapper.OrderMapper;
 import com.huang.parkingshare.mapper.OwnerEarningMapper;
 import com.huang.parkingshare.mapper.ParkingSlotMapper;
 import com.huang.parkingshare.mapper.UserMapper;
-import com.huang.parkingshare.util.SnowflakeIdWorker;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;

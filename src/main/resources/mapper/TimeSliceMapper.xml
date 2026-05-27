@@ -7,13 +7,13 @@
     <insert id="batchInsert" parameterType="list">
         INSERT INTO time_slice (
         id, slot_id, slice_date, start_minute, end_minute,
-        status, order_id, version
+        status, order_id
         ) VALUES
         <foreach collection="list" item="item" separator=",">
             (
             #{item.id}, #{item.slotId}, #{item.sliceDate},
             #{item.startMinute}, #{item.endMinute},
-            #{item.status}, #{item.orderId}, #{item.version}
+            #{item.status}, #{item.orderId}
             )
         </foreach>
     </insert>

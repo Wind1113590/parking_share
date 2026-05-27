@@ -17,9 +17,9 @@ public class JwtAuthenticationInterceptor implements HandlerInterceptor {
     private JwtUtil jwtUtil;
     @Autowired
     @Qualifier("customStringRedisTemplate")  // 注意指定名称
-    private RedisTemplate<String,String> redisTemplate;
+    private RedisTemplate<String, String> redisTemplate;
 
-    public static final String TOKEN_PREFIX = "token:user:";
+    public static final String TOKEN_BLACKLIST_PREFIX = "token:blacklist:jti:";
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
@@ -39,17 +39,18 @@ public class JwtAuthenticationInterceptor implements HandlerInterceptor {
             return false;
         }
 
-        Long userId = jwtUtil.getUserIdFromToken(token);
-
-        String key = TOKEN_PREFIX + userId + ":" + token;
-        // 3. 验证 Redis 中是否存在
-        if (Boolean.FALSE.equals(redisTemplate.hasKey(key))) {
+        // 检查黑名单
+        String jti = jwtUtil.getJtiFromToken(token);
+        String blacklistKey = TOKEN_BLACKLIST_PREFIX + jti;
+        if (Boolean.TRUE.equals(redisTemplate.hasKey(blacklistKey))) {
             response.setStatus(401);
-            response.getWriter().write("Token has been revoked");
+            response.setContentType("text/plain;charset=UTF-8");
+            response.getWriter().write("token被拉黑");
             return false;
         }
 
-        // 4. 存入 ThreadLocal
+        // 存入 ThreadLocal
+        Long userId = jwtUtil.getUserIdFromToken(token);
         CurrentUserHolder.setUserId(userId);
         return true;
     }

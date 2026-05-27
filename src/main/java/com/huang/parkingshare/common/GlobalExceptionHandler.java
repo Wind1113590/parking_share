@@ -55,12 +55,14 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     public Result<?> handleIllegalArgumentException(IllegalArgumentException e) {
         String message = e.getMessage();
+        log.warn("不合法参数: {}", message);
         return Result.error(400, message);
     }
 
     @ExceptionHandler(RuntimeException.class)
     public Result<?> handleRuntimeException(RuntimeException e) {
         String message = e.getMessage();
+        log.warn("系统异常: {}", message);
         return Result.error(400, message);
     }
 

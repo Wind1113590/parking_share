@@ -2,9 +2,7 @@ package com.huang.parkingshare.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.huang.parkingshare.entity.Order;
 import com.huang.parkingshare.entity.OwnerEarning;
-import com.huang.parkingshare.vo.OrderVO;
 import com.huang.parkingshare.vo.OwnerEarningVO;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Update;

@@ -20,20 +20,20 @@ spring:
     virtual-host: /
     listener:
       simple:
-        acknowledge-mode: auto   # ?????????????
+        acknowledge-mode: auto
         retry:
           enabled: true
           initial-interval: 1000ms
           max-attempts: 3
 
   elasticsearch:
-    uris: http://localhost:9200   # ES ????????????
-    connection-timeout: 5s        # ????
-    socket-timeout: 60s           # ????
+    uris: http://localhost:9200
+    connection-timeout: 5s
+    socket-timeout: 60s
     index:
-      auto-create: true   # ?? true
+      auto-create: true
 
-  # ???????Spring Boot 3.2 + ???????????
+  #虚拟线程
   threads:
     virtual:
       enabled: true
@@ -49,35 +49,35 @@ spring:
           max-idle: 8
           min-idle: 0
 
-# MyBatis-Plus ??
+# MyBatis-Plus
 mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml
   type-aliases-package: com.parkingshare.entity
   global-config:
     db-config:
-      id-type: assign_id   # ??????????
-      logic-delete-field: deleted   # ???????????????
+      id-type: assign_id
+      logic-delete-field: deleted
       logic-delete-value: 1
       logic-not-delete-value: 0
   configuration:
     map-underscore-to-camel-case: true
     cache-enabled: false
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl   # ??????SQL
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
 
-# ????
+
 logging:
   level:
     com.parkingshare: debug
     org.springframework.web: info
 
 platform:
-  commission-rate: 0.1   # ????10%
+  commission-rate: 0.1
 
 snowflake:
-  worker-id: 1        # ??ID???0-31
-  datacenter-id: 1    # ????ID???0-31
+  worker-id: 1
+  datacenter-id: 1
 
 
 jwt:
   secret: 3X7Q9w2R5t8Y11F4h6K9n2P5s7V10y13E16g19L22o25A28b31
-  expiration: 604800000  # 7天毫秒数
+  expiration: 604800000  # 7天

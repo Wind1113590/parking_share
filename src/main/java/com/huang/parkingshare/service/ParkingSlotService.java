@@ -15,6 +15,7 @@ import com.huang.parkingshare.util.TimeSliceGenerator;
 import com.huang.parkingshare.vo.ParkingSlotDetailVO;
 import com.huang.parkingshare.vo.ParkingSlotVO;
 import com.huang.parkingshare.vo.TimeSliceVO;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +35,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
+@Slf4j
 @Service
 public class ParkingSlotService {
 
@@ -58,10 +60,11 @@ public class ParkingSlotService {
     // 初始化未来天数（可以配置，这里默认7天）
     private static final int INIT_FUTURE_DAYS = 7;
 
-    @Transactional
+
     public ParkingSlot publishSlot(ParkingSlotPublishRequest request) {
         Long ownerId = CurrentUserHolder.getUserId();
 
+        long now = System.currentTimeMillis();
         // 1. 插入车位表
         ParkingSlot slot = new ParkingSlot();
         slot.setOwnerId(ownerId);
@@ -75,6 +78,10 @@ public class ParkingSlotService {
         slot.setCreateTime(LocalDateTime.now());
         parkingSlotMapper.insert(slot);
 
+        long useTime = System.currentTimeMillis() - now;
+        log.info("单表插入耗时"+useTime);
+
+        now = System.currentTimeMillis();
 
         // 2. 发送异步消息（同步到 ES）
         ParkingSlotSyncMessage message = new ParkingSlotSyncMessage(slot.getId(), slot.getOwnerId(), "CREATE");
@@ -82,9 +89,20 @@ public class ParkingSlotService {
                 RabbitMQConfig.PARKING_SLOT_SYNC_ROUTING_KEY,
                 message);
 
+        useTime = System.currentTimeMillis() - now;
+        log.info("发MQ"+useTime);
+
+
+        now = System.currentTimeMillis();
+
         // 2. 异步生成时间片（虚拟线程执行，不等待）
         timeSliceAsyncService.generateTimeSlicesAsync(slot);
 
+        useTime = System.currentTimeMillis() - now;
+        log.info("异步生成时间片"+useTime);
+
+
+        log.info("publishSlot return at {}", System.currentTimeMillis());
         return slot;
     }
 

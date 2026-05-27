@@ -1,6 +1,7 @@
 package com.huang.parkingshare.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.huang.parkingshare.common.Result;
 import com.huang.parkingshare.dto.LoginRequest;
 import com.huang.parkingshare.vo.LoginVO;
 import com.huang.parkingshare.dto.RegisterRequest;
@@ -12,24 +13,30 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.Date;
+import java.util.Set;
 
 @Service
 public class AuthService {
     @Autowired
-    private  UserMapper userMapper;
+    private UserMapper userMapper;
     @Autowired
-    private  BCryptPasswordEncoder passwordEncoder;
+    private BCryptPasswordEncoder passwordEncoder;
     @Autowired
-    private  JwtUtil jwtUtil;
+    private JwtUtil jwtUtil;
     @Autowired
     @Qualifier("customStringRedisTemplate")  // 注意指定名称
-    private  RedisTemplate<String, String> redisTemplate;
+    private RedisTemplate<String, String> redisTemplate;
 
-    public static final String TOKEN_PREFIX = "token:user:";
+    public static final String TOKEN_BLACKLIST_PREFIX = "token:blacklist:jti:";
+
 
     public void register(RegisterRequest request) {
         // 检查手机号是否已存在
@@ -59,22 +66,38 @@ public class AuthService {
 
         String token = jwtUtil.generateToken(user.getId(), user.getRole(), user.getPhone());
 
-        // Redis key 格式：token:user:123:eyJhbGc...
-        String key = TOKEN_PREFIX + user.getId() + ":" + token;
-
-        // 将 token 存入 Redis，过期时间与 JWT 相同（毫秒转秒）
-        long expirationSeconds = jwtUtil.getExpiration() / 1000;
-        redisTemplate.opsForValue().set(
-                key,
-                user.getId().toString(),
-                Duration.ofSeconds(expirationSeconds)
-        );
-
         LoginVO vo = new LoginVO();
         vo.setToken(token);
         vo.setUserId(user.getId());
         vo.setPhone(user.getPhone());
         vo.setRole(user.getRole());
+
         return vo;
+    }
+
+
+    public void logout(String authHeader) {
+        String token = authHeader.substring(7);
+        String jti = jwtUtil.getJtiFromToken(token);
+        // 获取 token 剩余有效期
+        long ttl = jwtUtil.getRemainingTimeMillis(token);
+
+        if (ttl > 0) {
+            redisTemplate.opsForValue().set(TOKEN_BLACKLIST_PREFIX + jti, "1", Duration.ofMillis(ttl));
+        }
+    }
+
+    public void kick(String authHeader) {
+        String token = authHeader.substring(7);
+        // 校验 token 合法性（可选，仅用于确保 token 有效）
+        if (!jwtUtil.validateToken(token)) {
+            throw new RuntimeException("无效token");
+        }
+        String jti = jwtUtil.getJtiFromToken(token);
+
+        long ttl = jwtUtil.getRemainingTimeMillis(token);
+        if (ttl > 0) {
+            redisTemplate.opsForValue().set(TOKEN_BLACKLIST_PREFIX + jti, "1", Duration.ofMillis(ttl));
+        }
     }
 }

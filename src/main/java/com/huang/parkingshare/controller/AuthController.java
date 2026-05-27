@@ -19,7 +19,7 @@ public class AuthController {
     private AuthService authService;
     @Autowired
     @Qualifier("customStringRedisTemplate")  // 注意指定名称
-    private  RedisTemplate<String,String> redisTemplate;
+    private RedisTemplate<String, String> redisTemplate;
 
 
     @PostMapping("/register")
@@ -36,8 +36,13 @@ public class AuthController {
 
     @PostMapping("/logout")
     public Result<String> logout(@RequestHeader("Authorization") String authHeader) {
-        String token = authHeader.substring(7);
-        redisTemplate.delete("token:" + token);
+        authService.logout(authHeader);
         return Result.success("登出成功");
+    }
+
+    @PostMapping("/admin/kickAll")
+    public Result<String> kick(@RequestHeader("Authorization") String authHeader) {
+        authService.kick(authHeader);
+        return Result.success("踢人成功");
     }
 }
